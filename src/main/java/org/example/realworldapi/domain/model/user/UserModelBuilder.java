@@ -4,9 +4,11 @@ import lombok.AllArgsConstructor;
 import org.example.realworldapi.domain.validator.ModelValidator;
 
 import javax.inject.Named;
+import javax.inject.Singleton;
 import java.util.UUID;
 
 @Named
+@Singleton
 @AllArgsConstructor
 public class UserModelBuilder {
   private final ModelValidator modelValidator;

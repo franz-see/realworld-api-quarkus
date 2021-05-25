@@ -2,11 +2,10 @@ package org.example.realworldapi.application.web.resource;
 
 import lombok.AllArgsConstructor;
 import org.example.realworldapi.application.web.resource.utils.ResourceUtils;
-import org.example.realworldapi.domain.feature.FollowUserByUsername;
-import org.example.realworldapi.domain.feature.UnfollowUserByUsername;
 import org.example.realworldapi.domain.model.constants.ValidationMessages;
 import org.example.realworldapi.infrastructure.web.security.annotation.Secured;
 import org.example.realworldapi.infrastructure.web.security.profile.Role;
+import org.example.realworldapi.domain.service.FollowService;
 
 import javax.transaction.Transactional;
 import javax.validation.constraints.NotBlank;
@@ -20,9 +19,8 @@ import javax.ws.rs.core.SecurityContext;
 @AllArgsConstructor
 public class ProfilesResource {
 
-  private final FollowUserByUsername followUserByUsername;
-  private final UnfollowUserByUsername unfollowUserByUsername;
   private final ResourceUtils resourceUtils;
+  private final FollowService followService;
 
   @GET
   @Secured(optional = true)
@@ -47,7 +45,7 @@ public class ProfilesResource {
           String username,
       @Context SecurityContext securityContext) {
     final var loggedUserId = resourceUtils.getLoggedUserId(securityContext);
-    followUserByUsername.handle(loggedUserId, username);
+    followService.followUserByUsername(loggedUserId, username);
     return Response.ok(resourceUtils.profileResponse(username, loggedUserId))
         .status(Response.Status.OK)
         .build();
@@ -63,7 +61,7 @@ public class ProfilesResource {
           String username,
       @Context SecurityContext securityContext) {
     final var loggedUserId = resourceUtils.getLoggedUserId(securityContext);
-    unfollowUserByUsername.handle(loggedUserId, username);
+    followService.unfollowUserByUsername(loggedUserId, username);
     return Response.ok(resourceUtils.profileResponse(username, loggedUserId))
         .status(Response.Status.OK)
         .build();

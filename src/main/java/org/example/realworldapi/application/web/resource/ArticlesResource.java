@@ -7,13 +7,14 @@ import org.example.realworldapi.application.web.model.request.NewArticleRequest;
 import org.example.realworldapi.application.web.model.request.NewCommentRequest;
 import org.example.realworldapi.application.web.model.request.UpdateArticleRequest;
 import org.example.realworldapi.application.web.resource.utils.ResourceUtils;
-import org.example.realworldapi.domain.feature.*;
 import org.example.realworldapi.domain.model.article.ArticleFilter;
 import org.example.realworldapi.domain.model.comment.DeleteCommentInput;
 import org.example.realworldapi.domain.model.constants.ValidationMessages;
 import org.example.realworldapi.infrastructure.web.qualifiers.NoWrapRootValueObjectMapper;
 import org.example.realworldapi.infrastructure.web.security.annotation.Secured;
 import org.example.realworldapi.infrastructure.web.security.profile.Role;
+import org.example.realworldapi.domain.service.ArticlesService;
+import org.example.realworldapi.domain.service.CommentService;
 
 import javax.transaction.Transactional;
 import javax.validation.Valid;
@@ -31,19 +32,11 @@ import java.util.UUID;
 @AllArgsConstructor
 public class ArticlesResource {
 
-  private final FindArticlesByFilter findArticlesByFilter;
-  private final CreateArticle createArticle;
-  private final FindMostRecentArticlesByFilter findMostRecentArticlesByFilter;
-  private final FindArticleBySlug findArticleBySlug;
-  private final UpdateArticleBySlug updateArticleBySlug;
-  private final DeleteArticleBySlug deleteArticleBySlug;
-  private final CreateComment createComment;
-  private final DeleteComment deleteComment;
-  private final FindCommentsByArticleSlug findCommentsByArticleSlug;
-  private final FavoriteArticle favoriteArticle;
-  private final UnfavoriteArticle unfavoriteArticle;
   @NoWrapRootValueObjectMapper ObjectMapper objectMapper;
   private final ResourceUtils resourceUtils;
+
+  private final ArticlesService articlesService;
+  private final CommentService commentService;
 
   @GET
   @Path("/feed")
@@ -57,7 +50,7 @@ public class ArticlesResource {
     final var loggedUserId = resourceUtils.getLoggedUserId(securityContext);
     final var articlesFilter =
         new ArticleFilter(offset, resourceUtils.getLimit(limit), loggedUserId, null, null, null);
-    final var articlesPageResult = findMostRecentArticlesByFilter.handle(articlesFilter);
+    final var articlesPageResult = articlesService.findMostRecentByFilter(articlesFilter);
     return Response.ok(
             objectMapper.writeValueAsString(
                 resourceUtils.articlesResponse(articlesPageResult, loggedUserId)))
@@ -80,7 +73,7 @@ public class ArticlesResource {
     final var filter =
         new ArticleFilter(
             offset, resourceUtils.getLimit(limit), loggedUserId, tags, authors, favorited);
-    final var articlesPageResult = findArticlesByFilter.handle(filter);
+    final var articlesPageResult = articlesService.findByFilter(filter);
     return Response.ok(
             objectMapper.writeValueAsString(
                 resourceUtils.articlesResponse(articlesPageResult, loggedUserId)))
@@ -98,7 +91,7 @@ public class ArticlesResource {
           NewArticleRequest newArticleRequest,
       @Context SecurityContext securityContext) {
     final var loggedUserId = resourceUtils.getLoggedUserId(securityContext);
-    final var article = createArticle.handle(newArticleRequest.toNewArticleInput(loggedUserId));
+    final var article = articlesService.create(newArticleRequest.toNewArticleInput(loggedUserId));
     return Response.ok(resourceUtils.articleResponse(article, loggedUserId))
         .status(Response.Status.CREATED)
         .build();
@@ -110,7 +103,7 @@ public class ArticlesResource {
   public Response findBySlug(
       @PathParam("slug") @NotBlank(message = ValidationMessages.SLUG_MUST_BE_NOT_BLANK)
           String slug) {
-    final var article = findArticleBySlug.handle(slug);
+    final var article = articlesService.findBySlug(slug);
     return Response.ok(resourceUtils.articleResponse(article, null))
         .status(Response.Status.OK)
         .build();
@@ -128,7 +121,7 @@ public class ArticlesResource {
       @Context SecurityContext securityContext) {
     final var loggedUserId = resourceUtils.getLoggedUserId(securityContext);
     final var updatedArticle =
-        updateArticleBySlug.handle(updateArticleRequest.toUpdateArticleInput(loggedUserId, slug));
+        articlesService.updateBySlug(updateArticleRequest.toUpdateArticleInput(loggedUserId, slug));
     return Response.ok(resourceUtils.articleResponse(updatedArticle, null))
         .status(Response.Status.OK)
         .build();
@@ -143,7 +136,7 @@ public class ArticlesResource {
       @PathParam("slug") @NotBlank(message = ValidationMessages.SLUG_MUST_BE_NOT_BLANK) String slug,
       @Context SecurityContext securityContext) {
     final var loggedUserId = resourceUtils.getLoggedUserId(securityContext);
-    deleteArticleBySlug.handle(loggedUserId, slug);
+    articlesService.deleteBySlug(loggedUserId, slug);
     return Response.ok().build();
   }
 
@@ -156,7 +149,7 @@ public class ArticlesResource {
       @Context SecurityContext securityContext)
       throws JsonProcessingException {
     final var loggedUserId = resourceUtils.getLoggedUserId(securityContext);
-    final var comments = findCommentsByArticleSlug.handle(slug);
+    final var comments = commentService.findByArticleSlug(slug);
     return Response.ok(
             objectMapper.writeValueAsString(resourceUtils.commentsResponse(comments, loggedUserId)))
         .status(Response.Status.OK)
@@ -175,7 +168,7 @@ public class ArticlesResource {
       @Context SecurityContext securityContext) {
     final var loggedUserId = resourceUtils.getLoggedUserId(securityContext);
     final var comment =
-        createComment.handle(newCommentRequest.toNewCommentInput(loggedUserId, slug));
+            commentService.create(newCommentRequest.toNewCommentInput(loggedUserId, slug));
     return Response.ok(resourceUtils.commentResponse(comment, loggedUserId))
         .status(Response.Status.OK)
         .build();
@@ -191,7 +184,7 @@ public class ArticlesResource {
       @PathParam("id") @NotNull(message = ValidationMessages.COMMENT_ID_MUST_BE_NOT_NULL) UUID id,
       @Context SecurityContext securityContext) {
     final var loggedUserId = resourceUtils.getLoggedUserId(securityContext);
-    deleteComment.handle(new DeleteCommentInput(id, loggedUserId, slug));
+    commentService.delete(new DeleteCommentInput(id, loggedUserId, slug));
     return Response.ok().build();
   }
 
@@ -204,8 +197,8 @@ public class ArticlesResource {
       @PathParam("slug") @NotBlank(message = ValidationMessages.SLUG_MUST_BE_NOT_BLANK) String slug,
       @Context SecurityContext securityContext) {
     final var loggedUserId = resourceUtils.getLoggedUserId(securityContext);
-    favoriteArticle.handle(slug, loggedUserId);
-    final var article = findArticleBySlug.handle(slug);
+    articlesService.favorite(slug, loggedUserId);
+    final var article = articlesService.findBySlug(slug);
     return Response.ok(resourceUtils.articleResponse(article, loggedUserId))
         .status(Response.Status.OK)
         .build();
@@ -220,8 +213,8 @@ public class ArticlesResource {
       @PathParam("slug") @NotBlank(message = ValidationMessages.SLUG_MUST_BE_NOT_BLANK) String slug,
       @Context SecurityContext securityContext) {
     final var loggedUserId = resourceUtils.getLoggedUserId(securityContext);
-    unfavoriteArticle.handle(slug, loggedUserId);
-    final var article = findArticleBySlug.handle(slug);
+    articlesService.unfavorite(slug, loggedUserId);
+    final var article = articlesService.findBySlug(slug);
     return Response.ok(resourceUtils.articleResponse(article, loggedUserId))
         .status(Response.Status.OK)
         .build();

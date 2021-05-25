@@ -5,9 +5,11 @@ import org.example.realworldapi.domain.model.article.Article;
 import org.example.realworldapi.domain.model.user.User;
 import org.example.realworldapi.domain.validator.ModelValidator;
 
+import javax.inject.Singleton;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@Singleton
 @AllArgsConstructor
 public class CommentBuilder {
 

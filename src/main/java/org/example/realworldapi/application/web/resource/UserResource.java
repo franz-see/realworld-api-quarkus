@@ -3,12 +3,11 @@ package org.example.realworldapi.application.web.resource;
 import lombok.AllArgsConstructor;
 import org.example.realworldapi.application.web.model.request.UpdateUserRequest;
 import org.example.realworldapi.application.web.model.response.UserResponse;
-import org.example.realworldapi.domain.feature.FindUserById;
-import org.example.realworldapi.domain.feature.UpdateUser;
 import org.example.realworldapi.domain.model.constants.ValidationMessages;
 import org.example.realworldapi.infrastructure.web.provider.TokenProvider;
 import org.example.realworldapi.infrastructure.web.security.annotation.Secured;
 import org.example.realworldapi.infrastructure.web.security.profile.Role;
+import org.example.realworldapi.domain.service.UserService;
 
 import javax.transaction.Transactional;
 import javax.validation.Valid;
@@ -24,16 +23,15 @@ import java.util.UUID;
 @AllArgsConstructor
 public class UserResource {
 
-  private final FindUserById findUserById;
-  private final UpdateUser updateUser;
   private final TokenProvider tokenProvider;
+  private final UserService userService;
 
   @GET
   @Secured({Role.ADMIN, Role.USER})
   @Produces(MediaType.APPLICATION_JSON)
   public Response getUser(@Context SecurityContext securityContext) {
     final var userId = UUID.fromString(securityContext.getUserPrincipal().getName());
-    final var user = findUserById.handle(userId);
+    final var user = userService.findById(userId);
     final var token = tokenProvider.createUserToken(user.getId().toString());
     return Response.ok(new UserResponse(user, token)).status(Response.Status.OK).build();
   }
@@ -48,7 +46,7 @@ public class UserResource {
       @Valid @NotNull(message = ValidationMessages.REQUEST_BODY_MUST_BE_NOT_NULL)
           UpdateUserRequest updateUserRequest) {
     final var userId = UUID.fromString(securityContext.getUserPrincipal().getName());
-    final var user = updateUser.handle(updateUserRequest.toUpdateUserInput(userId));
+    final var user = userService.update(updateUserRequest.toUpdateUserInput(userId));
     final var token = tokenProvider.createUserToken(user.getId().toString());
     return Response.ok(new UserResponse(user, token)).status(Response.Status.OK).build();
   }

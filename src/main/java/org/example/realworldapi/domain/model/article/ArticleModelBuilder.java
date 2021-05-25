@@ -4,9 +4,12 @@ import lombok.AllArgsConstructor;
 import org.example.realworldapi.domain.model.user.User;
 import org.example.realworldapi.domain.validator.ModelValidator;
 
+import javax.inject.Singleton;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+// TODO: Replace with lombok
+@Singleton
 @AllArgsConstructor
 public class ArticleModelBuilder {
 

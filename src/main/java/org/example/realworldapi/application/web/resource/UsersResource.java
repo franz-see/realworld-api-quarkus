@@ -6,12 +6,11 @@ import org.example.realworldapi.application.web.model.request.NewUserRequest;
 import org.example.realworldapi.application.web.model.response.UserResponse;
 import org.example.realworldapi.domain.exception.InvalidPasswordException;
 import org.example.realworldapi.domain.exception.UserNotFoundException;
-import org.example.realworldapi.domain.feature.CreateUser;
-import org.example.realworldapi.domain.feature.LoginUser;
 import org.example.realworldapi.domain.model.constants.ValidationMessages;
 import org.example.realworldapi.domain.model.user.User;
 import org.example.realworldapi.infrastructure.web.exception.UnauthorizedException;
 import org.example.realworldapi.infrastructure.web.provider.TokenProvider;
+import org.example.realworldapi.domain.service.UserService;
 
 import javax.transaction.Transactional;
 import javax.validation.Valid;
@@ -28,9 +27,8 @@ import javax.ws.rs.core.Response;
 @AllArgsConstructor
 public class UsersResource {
 
-  private final CreateUser createUser;
-  private final LoginUser loginUser;
   private final TokenProvider tokenProvider;
+  private final UserService userService;
 
   @POST
   @Transactional
@@ -40,7 +38,7 @@ public class UsersResource {
       @Valid @NotNull(message = ValidationMessages.REQUEST_BODY_MUST_BE_NOT_NULL)
           NewUserRequest newUserRequest,
       @Context SecurityException context) {
-    final var user = createUser.handle(newUserRequest.toCreateUserInput());
+    final var user = userService.create(newUserRequest.toCreateUserInput());
     final var token = tokenProvider.createUserToken(user.getId().toString());
     return Response.ok(new UserResponse(user, token)).status(Response.Status.CREATED).build();
   }
@@ -54,7 +52,7 @@ public class UsersResource {
           LoginRequest loginRequest) {
     User user;
     try {
-      user = loginUser.handle(loginRequest.toLoginUserInput());
+      user = userService.login(loginRequest.toLoginUserInput());
     } catch (UserNotFoundException | InvalidPasswordException ex) {
       throw new UnauthorizedException();
     }
